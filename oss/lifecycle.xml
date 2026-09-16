@@ -1,0 +1,20 @@
+<!-- From: "Object Storage Service (OSS) Patterns Every Alibaba Cloud Team Should Know" -->
+<!-- Apply: aliyun oss lifecycle --method put oss://my-bucket lifecycle.xml -->
+<LifecycleConfiguration>
+  <Rule>
+    <ID>archive-old-logs</ID>
+    <Prefix>logs/</Prefix>
+    <Status>Enabled</Status>
+    <Transition>
+      <Days>30</Days>
+      <StorageClass>IA</StorageClass>
+    </Transition>
+    <Transition>
+      <Days>90</Days>
+      <StorageClass>Archive</StorageClass>
+    </Transition>
+    <Expiration>
+      <Days>365</Days>
+    </Expiration>
+  </Rule>
+</LifecycleConfiguration>

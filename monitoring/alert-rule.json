@@ -1,0 +1,14 @@
+{
+  "_comment": "From: 'Monitoring and Observability on Alibaba Cloud with CloudMonitor and ARMS'. Apply via `aliyun cms PutMetricRuleTargets`.",
+  "RuleName": "api-p99-latency",
+  "Namespace": "acs_ecs_dashboard",
+  "MetricName": "vm.TCPConnection",
+  "Escalations": {
+    "Critical": {
+      "Statistics": "Average",
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Threshold": "500",
+      "Times": 3
+    }
+  }
+}

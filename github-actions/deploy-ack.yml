@@ -1,0 +1,54 @@
+# CI/CD pipeline to Alibaba Cloud Container Service for Kubernetes (ACK) via GitHub Actions.
+# From: "Building a CI/CD Pipeline to Alibaba Cloud with GitHub Actions"
+#
+# Setup:
+#   1. Create a RAM user dedicated to CI with AliyunContainerRegistryFullAccess and
+#      AliyunCSFullAccess (or a tighter custom policy scoped to this cluster).
+#   2. Add repo secrets: ACR_USERNAME, ACR_PASSWORD, ALICLOUD_ACCESS_KEY,
+#      ALICLOUD_SECRET_KEY, ACK_CLUSTER_ID.
+#
+# Copy this file to .github/workflows/deploy-ack.yml in your app repo.
+
+name: Deploy to Alibaba Cloud
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: registry.ap-southeast-1.aliyuncs.com
+  NAMESPACE: my-app-namespace
+  IMAGE: my-app
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        run: |
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login \
+            -u "${{ secrets.ACR_USERNAME }}" \
+            --password-stdin ${{ env.REGISTRY }}
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:${{ github.sha }}
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Set up kubectl for ACK
+        uses: aliyun/ack-set-context-action@v1
+        with:
+          access-key-id: ${{ secrets.ALICLOUD_ACCESS_KEY }}
+          access-key-secret: ${{ secrets.ALICLOUD_SECRET_KEY }}
+          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
+
+      - name: Roll out the new image
+        run: |
+          kubectl set image deployment/my-app \
+            my-app=${{ env.IMAGE_TAG }} \
+            -n production
+          kubectl rollout status deployment/my-app -n production --timeout=120s
