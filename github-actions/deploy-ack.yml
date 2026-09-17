@@ -21,7 +21,21 @@ env:
   IMAGE: my-app
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: app
+        run: |
+          npm install
+          node server.js & sleep 1
+          npm test
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +47,7 @@ jobs:
             --password-stdin ${{ env.REGISTRY }}
 
       - name: Build and push image
+        working-directory: app
         run: |
           IMAGE_TAG=${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE }}:${{ github.sha }}
           docker build -t $IMAGE_TAG .
@@ -46,9 +61,17 @@ jobs:
           access-key-secret: ${{ secrets.ALICLOUD_SECRET_KEY }}
           cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
 
+      - name: Apply manifests (first deploy only — safe to repeat)
+        run: kubectl apply -f kubernetes/deployment.yaml
+
       - name: Roll out the new image
         run: |
           kubectl set image deployment/my-app \
             my-app=${{ env.IMAGE_TAG }} \
             -n production
           kubectl rollout status deployment/my-app -n production --timeout=120s
+
+      - name: Smoke test the deployment
+        run: |
+          TARGET_IP=$(kubectl get svc my-app -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          TARGET_URL="http://${TARGET_IP}/health" node app/test/smoke.test.js
