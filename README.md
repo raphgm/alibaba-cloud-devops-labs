@@ -4,34 +4,19 @@ Runnable, end-to-end companion code for the Alibaba Cloud articles on [Dumka Esa
 
 ## Architecture
 
-```
-                         ┌─────────────────────────────┐
-                         │        GitHub Actions        │
-                         │  test → build → push → ACK    │
-                         └───────────────┬───────────────┘
-                                         │
-                     ┌───────────────────┼───────────────────┐
-                     ▼                                       ▼
-        ┌─────────────────────────┐            ┌─────────────────────────┐
-        │  terraform/ (ECS path)   │            │  kubernetes/ (ACK path)  │
-        │  VPC + SLB + 2-3 ECS      │            │  Deployment + Service    │
-        │  instances running app/   │            │  running app/ via ACR    │
-        │  via user_data bootstrap  │            │  image                   │
-        └─────────────┬───────────┘            └─────────────┬───────────┘
-                      │                                       │
-                      └───────────────────┬───────────────────┘
-                                         ▼
-                         ┌─────────────────────────────┐
-                         │  monitoring/ (CloudMonitor +  │
-                         │  ARMS) alert rule + queue      │
-                         │  routing                       │
-                         └─────────────────────────────┘
-                                         ▲
-                         ┌─────────────────────────────┐
-                         │  oss/ (storage patterns)        │
-                         │  lifecycle, signed URLs,        │
-                         │  multipart upload               │
-                         └─────────────────────────────┘
+```mermaid
+flowchart TD
+    CI["GitHub Actions<br/>test → build → push → ACK"]
+    TF["terraform/ (ECS path)<br/>VPC + SLB + 2-3 ECS instances<br/>running app/ via user_data bootstrap"]
+    K8S["kubernetes/ (ACK path)<br/>Deployment + Service<br/>running app/ via ACR image"]
+    MON["monitoring/ (CloudMonitor + ARMS)<br/>alert rule + queue routing"]
+    OSS["oss/ (storage patterns)<br/>lifecycle, signed URLs, multipart upload"]
+
+    CI --> TF
+    CI --> K8S
+    TF --> MON
+    K8S --> MON
+    OSS --> MON
 ```
 
 ## Contents
